@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../painting/paint_controller.dart';
 
@@ -20,7 +21,9 @@ class ColoringCanvas extends StatefulWidget {
   State<ColoringCanvas> createState() => _ColoringCanvasState();
 }
 
-class _ColoringCanvasState extends State<ColoringCanvas> {
+class _ColoringCanvasState extends State<ColoringCanvas>
+    with SingleTickerProviderStateMixin {
+  late final Ticker _liveFrame;
   final Map<int, Offset> _pointers = {};
   double _scale = 1;
   Offset _offset = Offset.zero;
@@ -36,6 +39,36 @@ class _ColoringCanvasState extends State<ColoringCanvas> {
   double _panZoomStartScale = 1;
   Offset _panZoomFocalImage = Offset.zero;
   Offset _panZoomStartLocal = Offset.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    // A repaint requested from a pointer event is postponed on Windows
+    // until the finger lifts. The ticker runs outside that event.
+    _liveFrame = createTicker((_) {
+      if (!mounted) {
+        return;
+      }
+      final controller = widget.controller;
+      if (!controller.hasActiveStroke && !controller.showLiveStroke) {
+        _liveFrame.stop();
+        return;
+      }
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _liveFrame.dispose();
+    super.dispose();
+  }
+
+  void _kickLiveFrame() {
+    if (!_liveFrame.isActive) {
+      _liveFrame.start();
+    }
+  }
 
   void _fit(Size size) {
     if (_fitted || size.isEmpty) {
@@ -64,16 +97,19 @@ class _ColoringCanvasState extends State<ColoringCanvas> {
     _applyRadius();
     final image = _toImage(local);
     widget.controller.pointerDown(image.dx, image.dy);
+    _kickLiveFrame();
   }
 
   void _movePaint(Offset local) {
     _applyRadius();
     final image = _toImage(local);
     widget.controller.pointerMove(image.dx, image.dy);
+    _kickLiveFrame();
   }
 
   void _finishPaint() {
     widget.controller.pointerUp();
+    _kickLiveFrame();
   }
 
   bool _isPanButton(int buttons) {
@@ -218,6 +254,8 @@ class _ColoringCanvasState extends State<ColoringCanvas> {
             painter: _SheetPainter(
               lineImage: controller.lineImage,
               colorImage: controller.colorImage,
+              preview: controller.strokePreview,
+              previewSerial: controller.previewSerial,
               imageWidth: controller.art.width.toDouble(),
               imageHeight: controller.art.height.toDouble(),
               offset: _offset,
@@ -235,6 +273,8 @@ class _SheetPainter extends CustomPainter {
   const _SheetPainter({
     required this.lineImage,
     required this.colorImage,
+    required this.preview,
+    required this.previewSerial,
     required this.imageWidth,
     required this.imageHeight,
     required this.offset,
@@ -243,6 +283,8 @@ class _SheetPainter extends CustomPainter {
 
   final ui.Image? lineImage;
   final ui.Image? colorImage;
+  final StrokePreview? preview;
+  final int previewSerial;
   final double imageWidth;
   final double imageHeight;
   final Offset offset;
@@ -258,6 +300,10 @@ class _SheetPainter extends CustomPainter {
     final colors = colorImage;
     if (colors != null) {
       canvas.drawImage(colors, Offset.zero, Paint());
+    }
+    final live = preview;
+    if (live != null && live.radius > 0) {
+      _paintPreview(canvas, page, live);
     }
     final lines = lineImage;
     if (lines != null) {
@@ -277,7 +323,41 @@ class _SheetPainter extends CustomPainter {
   bool shouldRepaint(covariant _SheetPainter oldDelegate) {
     return oldDelegate.lineImage != lineImage ||
         oldDelegate.colorImage != colorImage ||
+        oldDelegate.previewSerial != previewSerial ||
         oldDelegate.offset != offset ||
         oldDelegate.scale != scale;
   }
+}
+
+void _paintPreview(Canvas canvas, Rect page, StrokePreview preview) {
+  canvas.saveLayer(
+    page,
+    Paint()..blendMode = preview.erase ? BlendMode.dstOut : BlendMode.srcOver,
+  );
+  final stroke = Paint()
+    ..color = preview.erase
+        ? const Color(0xFFFFFFFF)
+        : Color.fromARGB(255, preview.red, preview.green, preview.blue)
+    ..strokeWidth = preview.radius * 2
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..style = preview.points.length == 1
+        ? PaintingStyle.fill
+        : PaintingStyle.stroke;
+  if (preview.points.length == 1) {
+    canvas.drawCircle(preview.points.first, preview.radius, stroke);
+  } else {
+    final path = Path()
+      ..moveTo(preview.points.first.dx, preview.points.first.dy);
+    for (final point in preview.points.skip(1)) {
+      path.lineTo(point.dx, point.dy);
+    }
+    canvas.drawPath(path, stroke);
+  }
+  canvas.drawImage(
+    preview.mask,
+    Offset.zero,
+    Paint()..blendMode = BlendMode.dstIn,
+  );
+  canvas.restore();
 }

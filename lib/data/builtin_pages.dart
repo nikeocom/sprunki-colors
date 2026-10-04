@@ -26,4 +26,9 @@ const builtinPages = <PageRef>[
   PageRef(id: 'sky', title: 'Скай', asset: 'assets/pages/sky.svg'),
   PageRef(id: 'jevin', title: 'Джевин', asset: 'assets/pages/jevin.svg'),
   PageRef(id: 'pinkicool', title: 'Пинки крутой', asset: 'assets/pages/pinki-cool.svg'),
+  PageRef(id: 'vedro', title: 'Ведро', asset: 'assets/pages/vedro.svg'),
+  PageRef(id: 'veneria', title: 'Винерия 2', asset: 'assets/pages/veneria.svg'),
+  PageRef(id: 'pinkie', title: 'Пинки 2', asset: 'assets/pages/pinkie.svg'),
+  PageRef(id: 'gruppa_1', title: 'Группа 1', asset: 'assets/pages/gruppa_1.svg'),
+  PageRef(id: 'gruppa_2', title: 'Группа 2', asset: 'assets/pages/gruppa_2.svg'),
 ];
