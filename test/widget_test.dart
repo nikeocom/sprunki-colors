@@ -33,7 +33,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('Ластик'), findsOneWidget);
+    expect(find.byTooltip('Ластик'), findsOneWidget);
     expect(find.text('Яркая'), findsOneWidget);
     expect(find.text('Орен'), findsOneWidget);
   });

@@ -365,7 +365,8 @@ class _ToolPanel extends StatelessWidget {
           ),
         const Spacer(),
         FilterChip(
-          label: const Text('Ластик'),
+          tooltip: 'Ластик',
+          label: const _EraserIcon(),
           selected: erasing,
           onSelected: (_) => onEraser(),
         ),
@@ -498,4 +499,54 @@ class _SizeButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _EraserIcon extends StatelessWidget {
+  const _EraserIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 28,
+      height: 22,
+      child: CustomPaint(painter: _EraserIconPainter()),
+    );
+  }
+}
+
+class _EraserIconPainter extends CustomPainter {
+  const _EraserIconPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(-0.4);
+    const width = 20.0;
+    const height = 11.0;
+    final body = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset.zero, width: width, height: height),
+      const Radius.circular(2),
+    );
+    canvas.drawRRect(body, Paint()..color = const Color(0xFFFF8FAB));
+    canvas.save();
+    canvas.clipRRect(body);
+    canvas.drawRect(
+      Rect.fromLTWH(-width / 2, -height / 2, 6, height),
+      Paint()..color = const Color(0xFF8ECAFF),
+    );
+    canvas.restore();
+    canvas.drawRRect(
+      body,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6
+        ..color = const Color(0xFF3A2A32),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
